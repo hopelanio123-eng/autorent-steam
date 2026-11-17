@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/panel.css">
+  <script src="/static/i18n.js" defer></script>
+  <script src="/static/panel.js" defer></script>
+  <title>AutoRent Steam · Учёт аренды</title>
+</head>
+<body>
+  <div class="layout">
+    <header class="sidebar">
+      <a class="brand" href="/">
+        <img src="/static/logo.svg" alt="" width="38" height="38">
+        <span>AutoRent Steam</span>
+      </a>
+      <nav aria-label="Разделы">
+        <a href="#accounts" aria-current="page">Аккаунты</a>
+        <a href="#lots">Лоты</a>
+        <a href="#rentals">Аренда</a>
+        <a href="#history">История</a>
+        <a href="#reports">Отчёты</a>
+        <a href="#notifications">Уведомления</a>
+        <a href="#settings">Настройки</a>
+      </nav>
+      <select class="language-picker" data-language aria-label="Язык">
+        <option value="ru" lang="ru">Русский</option>
+        <option value="en" lang="en">English</option>
+      </select>
+    </header>
+
+    <main>
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">Локальный учёт</p>
+          <h1 id="page-title">Аккаунты</h1>
+        </div>
+        <div class="actions">
+          <button id="import-accounts" type="button">Импорт CSV</button>
+          <a class="button" id="export-accounts" href="/api/accounts/export-csv" download="accounts.csv">Экспорт CSV</a>
+          <button id="new-account" type="button">Добавить аккаунт</button>
+          <button id="new-lot" type="button" hidden>Создать лот</button>
+          <button id="new-rental" class="primary" type="button">Оформить аренду</button>
+        </div>
+      </header>
+
+      <dl class="stats" aria-label="Сводка">
+        <div><dt>Всего аккаунтов</dt><dd id="total">—</dd></div>
+        <div><dt>Свободны</dt><dd id="free">—</dd></div>
+        <div><dt>В аренде</dt><dd id="busy">—</dd></div>
+        <div><dt>Просрочены</dt><dd id="expired">—</dd></div>
+        <div><dt>Сумма аренд</dt><dd id="earned">—</dd></div>
+      </dl>
+
+      <p id="notice" role="status" hidden></p>
+      <section class="panel" id="table-panel" aria-labelledby="table-title">
+        <header class="panel-header">
+          <div>
+            <h2 id="table-title">Список аккаунтов</h2>
+            <p id="table-count"></p>
+          </div>
+          <div class="actions filters">
+            <label>Поиск <input id="search" type="search" maxlength="120" placeholder="Логин, игра или заказ"></label>
+            <label id="status-label">
+              Статус
+              <select id="status-filter">
+                <option value="">Все</option>
+                <option value="free">Свободны</option>
+                <option value="busy">В аренде</option>
+                <option value="expired">Просрочены</option>
+                <option value="disabled">Отключены</option>
+              </select>
+            </label>
+          </div>
+        </header>
+        <div class="table-scroll">
+          <table>
+            <thead id="table-head"></thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+        <p id="empty" hidden></p>
+      </section>
+
+      <section class="panel" id="lots-panel" aria-labelledby="lots-title" hidden>
+        <header class="panel-header"><h2 id="lots-title">Локальный каталог</h2></header>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Лот</th><th>Свободно</th><th>Срок</th><th>Цена за аккаунт</th><th>Действия</th></tr></thead>
+            <tbody id="lots-table"></tbody>
+          </table>
+        </div>
+        <p class="panel-empty" id="lots-empty" hidden>Лотов пока нет</p>
+      </section>
+
+      <div class="reports" id="reports-panel" hidden>
+        <section class="panel report" aria-labelledby="period-report-title">
+          <header class="panel-header">
+            <h2 id="period-report-title">Выручка по дням</h2>
+            <label>Период
+              <select id="report-days">
+                <option value="7">7 дней</option>
+                <option value="30">30 дней</option>
+                <option value="90">90 дней</option>
+              </select>
+            </label>
+          </header>
+          <div id="revenue-chart" class="chart"></div>
+        </section>
+        <section class="panel report" aria-labelledby="profit-title">
+          <header class="panel-header"><h2 id="profit-title">Прибыль за всё время</h2></header>
+          <dl id="profit-summary" class="profit-summary"></dl>
+        </section>
+      </div>
+
+      <section class="panel" id="notifications-panel" aria-labelledby="notifications-title" hidden>
+        <header class="panel-header">
+          <h2 id="notifications-title">Сроки аренд</h2>
+          <p id="notifications-unread"></p>
+        </header>
+        <ul id="notification-list" class="notifications"></ul>
+        <p id="notifications-empty" class="panel-empty" hidden>Нет аренд, срок которых подходит к концу</p>
+      </section>
+
+      <section class="panel settings" id="settings-panel" aria-labelledby="settings-title" hidden>
+        <header class="panel-header"><h2 id="settings-title">Портал и напоминания</h2></header>
+        <form id="settings-form">
+          <label class="choice"><input type="checkbox" name="buyer_portal_enabled"> Портал аренды включён</label>
+          <label>Срок действия новой ссылки, ч
+            <input name="buyer_portal_ttl_hours" type="number" min="0" max="720" required>
+            <small>0 — до окончания аренды.</small>
+          </label>
+          <label>Информация для покупателя <textarea name="buyer_portal_help" maxlength="1500" rows="3"></textarea></label>
+          <label>Напоминать за столько минут
+            <input name="rental_reminder_minutes" type="number" min="0" max="1440" required>
+            <small>0 — показывать только просроченные аренды.</small>
+          </label>
+          <p class="form-error" role="alert" hidden></p>
+          <footer><button type="submit" class="primary">Сохранить настройки</button></footer>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="account-dialog" aria-labelledby="account-title">
+    <form id="account-form">
+      <h2 id="account-title">Добавить аккаунт</h2>
+      <label id="account-login-label">Логин <input name="login" required maxlength="80"></label>
+      <label>Название в списке <input name="account_name" maxlength="120"></label>
+      <label>Игра <input name="game" required maxlength="120"></label>
+      <label>Подгруппа <input name="game_subgroup" maxlength="120"></label>
+      <label>Платформа
+        <input name="platform" list="platforms" required maxlength="120" value="steam">
+        <datalist id="platforms">
+          <option value="steam">Steam</option><option value="riot">Riot</option>
+          <option value="epic">Epic Games</option><option value="rockstar">Rockstar</option>
+          <option value="ea">EA</option><option value="battlenet">Battle.net</option>
+          <option value="wargaming">Wargaming</option><option value="lesta">Леста</option>
+        </datalist>
+      </label>
+      <div class="field-row">
+        <label>Цена покупки, ₽ <input name="purchase_cost" type="number" min="0" max="10000000" step="0.01" required value="0"></label>
+        <label>Доп. расходы, ₽ <input name="extra_expenses" type="number" min="0" max="10000000" step="0.01" required value="0"></label>
+      </div>
+      <p class="form-error" role="alert" hidden></p>
+      <footer>
+        <button type="button" data-close>Отмена</button>
+        <button type="submit" class="primary" id="account-submit">Добавить</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="rental-dialog" aria-labelledby="rental-title">
+    <form id="rental-form">
+      <h2 id="rental-title">Оформить аренду</h2>
+      <fieldset>
+        <legend>Свободные аккаунты</legend>
+        <div id="rental-accounts"></div>
+      </fieldset>
+      <div class="field-row" id="manual-rental-fields">
+        <label>Часы <input name="hours" type="number" required min="0.25" max="720" step="0.25" value="1"></label>
+        <label>Общая сумма, ₽ <input name="price" type="number" required min="0" max="10000000" step="0.01" value="0"></label>
+      </div>
+      <p id="rental-lot-info" hidden></p>
+      <label>Номер заказа <input name="order_id" maxlength="100"></label>
+      <label>Источник записи
+        <select name="marketplace">
+          <option value="manual">Вручную</option>
+          <option value="funpay">FunPay</option>
+          <option value="playerok">Playerok</option>
+        </select>
+      </label>
+      <p class="form-error" role="alert" hidden></p>
+      <footer>
+        <button type="button" data-close>Отмена</button>
+        <button type="submit" class="primary">Оформить</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="lot-dialog" aria-labelledby="lot-title">
+    <form id="lot-form">
+      <h2 id="lot-title">Создать лот</h2>
+      <label>Название лота <input name="title" maxlength="120" required></label>
+      <label>Игра <select name="game" required></select></label>
+      <div class="field-row">
+        <label>Срок, мин <input name="minutes" type="number" min="1" max="43200" required value="60"></label>
+        <label>Цена за аккаунт, ₽ <input name="price" type="number" min="0" max="10000000" step="0.01" required value="0"></label>
+      </div>
+      <label class="choice"><input name="is_enabled" type="checkbox" checked> Лот доступен для аренды</label>
+      <p class="form-error" role="alert" hidden></p>
+      <footer>
+        <button type="button" data-close>Отмена</button>
+        <button type="submit" class="primary">Сохранить лот</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="csv-dialog" aria-labelledby="csv-title">
+    <form id="csv-form">
+      <h2 id="csv-title">Импорт аккаунтов</h2>
+      <p>Сохрани UTF-8 CSV со столбцами login и game.</p>
+      <label>Файл CSV <input name="file" type="file" accept=".csv,text/csv" required></label>
+      <p class="form-error" role="alert" hidden></p>
+      <footer>
+        <button type="button" data-close>Отмена</button>
+        <button type="submit" class="primary">Импортировать</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="refund-dialog" aria-labelledby="refund-title">
+    <form id="refund-form">
+      <h2 id="refund-title">Записать возврат</h2>
+      <p id="refund-target"></p>
+      <label>Сумма, ₽ <input name="amount" type="number" step="0.01" min="0.01" required></label>
+      <p class="form-error" role="alert" hidden></p>
+      <footer>
+        <button type="button" data-close>Отмена</button>
+        <button type="submit" class="primary">Записать</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="buyer-link-dialog" aria-labelledby="buyer-link-title">
+    <form>
+      <h2 id="buyer-link-title">Ссылка на портал аренды</h2>
+      <label>Адрес <input id="buyer-link-url" readonly></label>
+      <p>Ссылка действует до окончания аренды и открывается в этой локальной установке.</p>
+      <footer>
+        <button type="button" data-close>Закрыть</button>
+        <a class="button primary" id="buyer-link-open" target="_blank" rel="noopener noreferrer">Открыть портал</a>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="action-dialog" aria-labelledby="action-title">
+    <form id="action-form">
+      <h2 id="action-title"></h2>
+      <p id="action-target"></p>
+      <label id="duration-label">Минуты <input name="minutes" type="number" min="1" max="43200" value="60" required></label>
+      <p class="form-error" role="alert" hidden></p>
+      <footer>
+        <button type="button" data-close>Отмена</button>
+        <button type="submit" class="primary" id="action-submit">Подтвердить</button>
+      </footer>
+    </form>
+  </dialog>
+</body>
+</html>

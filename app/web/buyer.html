@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <link rel="stylesheet" href="/static/panel.css">
+  <script src="/static/i18n.js" defer></script>
+  <script src="/static/buyer.js" defer></script>
+  <title>AutoRent Steam · Портал аренды</title>
+</head>
+<body class="buyer">
+  <main class="panel buyer-card">
+    <header class="buyer-header">
+      <div class="brand"><img src="/static/logo.svg" width="36" height="36" alt="">AutoRent Steam</div>
+      <select class="language-picker" data-language aria-label="Язык">
+        <option value="ru" lang="ru">Русский</option>
+        <option value="en" lang="en">English</option>
+      </select>
+    </header>
+    <h1>Моя аренда</h1>
+    <p id="buyer-status" role="status">Загрузка информации…</p>
+    <dl id="buyer-info" class="profit-summary" hidden>
+      <div><dt>Игра</dt><dd id="buyer-game"></dd></div>
+      <div><dt>Заказ</dt><dd id="buyer-order"></dd></div>
+      <div><dt>Срок аренды</dt><dd id="buyer-expires"></dd></div>
+      <div><dt>Осталось</dt><dd id="buyer-remaining"></dd></div>
+    </dl>
+    <p id="buyer-help" hidden></p>
+  </main>
+</body>
+</html>
